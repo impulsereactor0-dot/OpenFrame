@@ -2,6 +2,7 @@
   "expo": {
     "name": "OpenFrame",
     "slug": "openframe",
+    "owner": "impulsereactor0s-team",
     "version": "0.1.0",
     "orientation": "portrait",
     "scheme": "openframe",
