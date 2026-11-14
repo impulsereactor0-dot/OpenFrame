@@ -20,6 +20,9 @@
       "expo-video",
       ["expo-image-picker", { "photosPermission": "OpenFrame needs access to your photos to animate them." }]
     ],
-    "experiments": { "typedRoutes": false }
+    "experiments": { "typedRoutes": false },
+    "extra": {
+      "eas": { "projectId": "96d31e67-f814-43cc-a7eb-824e91b951e5" }
+    }
   }
 }
