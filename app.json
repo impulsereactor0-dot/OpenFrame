@@ -1,0 +1,25 @@
+{
+  "expo": {
+    "name": "OpenFrame",
+    "slug": "openframe",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "openframe",
+    "userInterfaceStyle": "dark",
+    "platforms": ["android"],
+    "android": {
+      "package": "com.openframe.app",
+      "versionCode": 1,
+      "allowBackup": false,
+      "permissions": []
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-localization",
+      "expo-video",
+      ["expo-image-picker", { "photosPermission": "OpenFrame needs access to your photos to animate them." }]
+    ],
+    "experiments": { "typedRoutes": false }
+  }
+}
