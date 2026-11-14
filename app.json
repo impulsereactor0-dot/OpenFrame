@@ -6,7 +6,9 @@
     "orientation": "portrait",
     "scheme": "openframe",
     "userInterfaceStyle": "dark",
-    "platforms": ["android"],
+    "platforms": [
+      "android"
+    ],
     "android": {
       "package": "com.openframe.app",
       "versionCode": 1,
@@ -18,11 +20,21 @@
       "expo-secure-store",
       "expo-localization",
       "expo-video",
-      ["expo-image-picker", { "photosPermission": "OpenFrame needs access to your photos to animate them." }]
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "OpenFrame needs access to your photos to animate them."
+        }
+      ],
+      "expo-font"
     ],
-    "experiments": { "typedRoutes": false },
+    "experiments": {
+      "typedRoutes": false
+    },
     "extra": {
-      "eas": { "projectId": "96d31e67-f814-43cc-a7eb-824e91b951e5" }
+      "eas": {
+        "projectId": "96d31e67-f814-43cc-a7eb-824e91b951e5"
+      }
     }
   }
 }
