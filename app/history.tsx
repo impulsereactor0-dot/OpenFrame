@@ -1,0 +1,104 @@
+import React, { useCallback, useState } from 'react';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useFocusEffect } from 'expo-router';
+import type { HistoryItem } from '../src/core/types';
+import { getHistory, removeHistoryItem } from '../src/storage/historyStore';
+import { shareVideo } from '../src/services/videoFiles';
+import { useT } from '../src/i18n';
+import { Screen } from '../src/ui/components/Screen';
+import { VideoCard } from '../src/ui/components/VideoCard';
+import { ErrorBanner } from '../src/ui/components/ErrorBanner';
+import { theme } from '../src/ui/theme';
+
+export default function HistoryScreen() {
+  const { t } = useT();
+  const [items, setItems] = useState<HistoryItem[]>([]);
+  const [playing, setPlaying] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(() => {
+    getHistory().then(setItems).catch(() => setItems([]));
+  }, []);
+  useFocusEffect(load);
+
+  const confirmDelete = (id: string) =>
+    Alert.alert(t('history.confirmDelete'), undefined, [
+      { text: t('common.cancel'), style: 'cancel' },
+      {
+        text: t('common.delete'),
+        style: 'destructive',
+        onPress: async () => {
+          await removeHistoryItem(id);
+          if (playing === id) setPlaying(null);
+          load();
+        },
+      },
+    ]);
+
+  const share = async (item: HistoryItem) => {
+    setError(null);
+    try {
+      await shareVideo(item);
+    } catch {
+      setError(t('history.shareError'));
+    }
+  };
+
+  const statusLabel = (i: HistoryItem) =>
+    i.status === 'failed' ? t('history.failed') : i.status === 'succeeded' ? '' : t('history.inProgress');
+
+  return (
+    <Screen title={t('history.title')}>
+      <ErrorBanner message={error} />
+      {items.length === 0 ? <Text style={styles.empty}>{t('history.empty')}</Text> : null}
+      {items.map((item) => {
+        const uri = item.localUri ?? item.videoUrl;
+        return (
+          <View key={item.id} style={styles.card}>
+            <Text style={styles.prompt} numberOfLines={2}>{item.prompt}</Text>
+            <Text style={styles.meta}>
+              {t(`settings.${item.provider}`)} · {new Date(item.createdAt).toLocaleString()} {statusLabel(item)}
+            </Text>
+            {playing === item.id && uri ? <VideoCard uri={uri} /> : null}
+            <View style={styles.row}>
+              {uri ? (
+                <>
+                  <Action label={t('common.play')} onPress={() => setPlaying(playing === item.id ? null : item.id)} />
+                  <Action label={t('common.share')} onPress={() => share(item)} />
+                </>
+              ) : (
+                <Text style={styles.meta}>{t('history.noVideo')}</Text>
+              )}
+              <Action label={t('common.delete')} danger onPress={() => confirmDelete(item.id)} />
+            </View>
+          </View>
+        );
+      })}
+    </Screen>
+  );
+}
+
+function Action({ label, onPress, danger }: { label: string; onPress: () => void; danger?: boolean }) {
+  return (
+    <Pressable onPress={onPress} style={styles.action}>
+      <Text style={[styles.actionText, danger && { color: theme.colors.danger }]}>{label}</Text>
+    </Pressable>
+  );
+}
+
+const styles = StyleSheet.create({
+  empty: { color: theme.colors.muted, textAlign: 'center', marginTop: theme.spacing.lg },
+  card: {
+    gap: theme.spacing.sm,
+    padding: theme.spacing.md,
+    backgroundColor: theme.colors.card,
+    borderRadius: theme.radius,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  prompt: { color: theme.colors.text, fontSize: theme.font.body },
+  meta: { color: theme.colors.muted, fontSize: theme.font.small },
+  row: { flexDirection: 'row', gap: theme.spacing.md, alignItems: 'center' },
+  action: { paddingVertical: 6, paddingRight: theme.spacing.sm },
+  actionText: { color: theme.colors.primary, fontSize: theme.font.body, fontWeight: '600' },
+});
