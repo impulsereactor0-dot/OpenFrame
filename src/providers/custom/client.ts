@@ -27,18 +27,29 @@ function getOrigin(url: string): string {
   return m[1];
 }
 
+export function normalizePolzaModel(raw?: string): string {
+  const s = raw?.trim();
+  if (!s) return 'bytedance/seedance-2-mini';
+  const slug = s.toLowerCase().replace(/\s+/g, '-').replace(/seadance/g, 'seedance');
+  if (slug === 'seedance-2-mini' || slug === 'seedance-mini') return 'bytedance/seedance-2-mini';
+  if (slug === 'seedance-2-fast' || slug === 'seedance-fast') return 'bytedance/seedance-2-fast';
+  if (slug === 'seedance-2' || slug === 'seedance') return 'bytedance/seedance-2';
+  if (slug === 'seedance-1.5-pro' || slug === 'seedance-1.5') return 'bytedance/seedance-1.5-pro';
+  return s;
+}
+
 function resolvePolza(baseUrl: string, model?: string): { postUrl: string; model: string } | null {
   const mediaMatch = baseUrl.match(/^(https:\/\/[^/]*polza\.ai)\/api\/v1\/media(?:\/(.+))?$/i);
   if (mediaMatch) {
     return {
       postUrl: `${mediaMatch[1]}/api/v1/media`,
-      model: model || mediaMatch[2] || 'kling/v3',
+      model: normalizePolzaModel(model || mediaMatch[2]),
     };
   }
   if (/^https:\/\/[^/]*polza\.ai(\/api(\/v1)?)?$/i.test(baseUrl)) {
     return {
       postUrl: `${getOrigin(baseUrl)}/api/v1/media`,
-      model: model || 'kling/v3',
+      model: normalizePolzaModel(model),
     };
   }
   return null;
@@ -69,13 +80,27 @@ export async function createCustomTask(
   const dataUrl =
     req.mode === 'image2video' ? `data:${req.imageMime ?? 'image/jpeg'};base64,${req.imageBase64}` : undefined;
 
+  const duration = req.durationSec && req.durationSec > 0 ? req.durationSec : 5;
+  const polzaModel = polza?.model ?? normalizePolzaModel(model);
+  const isKlingModel = /^kling\//i.test(polzaModel);
+  const isSeedanceModel = /seedance/i.test(polzaModel);
+
   const body: Record<string, unknown> = isPolza
     ? {
-        model: polza?.model ?? model ?? 'kling/v3',
+        model: polzaModel,
         async: true,
         input: {
           prompt: req.prompt,
           aspect_ratio: '16:9',
+          duration: String(duration),
+          ...(isKlingModel ? { mode: req.quality === 'high' ? 'pro' : 'std', sound: 'false' } : {}),
+          ...(isSeedanceModel
+            ? {
+                resolution: req.quality === 'high' ? '720p' : '480p',
+                generate_audio: 'false',
+                multi_shots: 'false',
+              }
+            : {}),
           ...(req.mode === 'image2video' && req.imageBase64
             ? { images: [{ type: 'base64', data: req.imageBase64 }] }
             : {}),
@@ -84,7 +109,7 @@ export async function createCustomTask(
     : {
         prompt: req.prompt,
         mode: req.mode,
-        duration: req.durationSec === 10 ? 10 : 5,
+        duration,
         ...(model ? { model } : {}),
         ...(dataUrl ? { image: dataUrl, first_frame_image: dataUrl, image_url: dataUrl } : {}),
       };

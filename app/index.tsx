@@ -1,12 +1,16 @@
-import React, { useState } from 'react';
-import { Pressable, Text } from 'react-native';
+import React, { useCallback, useState } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useFocusEffect } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
-import type { GenerationMode, ProviderId } from '../src/core/types';
+import type { GenerationMode, ProviderId, VideoQuality } from '../src/core/types';
 import { getErrorMessage } from '../src/core/errorMessages';
+import { estimateVideoCost } from '../src/core/pricing';
 import { useGeneration } from '../src/hooks/useGeneration';
 import { useAsyncAction } from '../src/hooks/useAsyncAction';
 import { useSettings } from '../src/hooks/useSettings';
 import { PROVIDERS, getProvider } from '../src/providers/registry';
+import { getCredentials } from '../src/storage/secureKeys';
+import { saveVideoToDevice, shareVideo } from '../src/services/videoFiles';
 import { useT } from '../src/i18n';
 import { Screen } from '../src/ui/components/Screen';
 import { ProviderPicker } from '../src/ui/components/ProviderPicker';
@@ -25,13 +29,51 @@ export default function GenerateScreen() {
   const { run, busy } = useAsyncAction(gen.start);
 
   const [mode, setMode] = useState<GenerationMode>('text2video');
+  const [quality, setQuality] = useState<VideoQuality>('standard');
+  const [durationSec, setDurationSec] = useState<number>(5);
   const [prompt, setPrompt] = useState('');
   const [image, setImage] = useState<{ uri: string; base64: string; mime: string } | null>(null);
   const [localError, setLocalError] = useState<string | null>(null);
+  const [customModel, setCustomModel] = useState<string | undefined>(undefined);
+  const [saveMessage, setSaveMessage] = useState<string | null>(null);
+
+  useFocusEffect(
+    useCallback(() => {
+      getCredentials('custom')
+        .then((c) => setCustomModel(c?.model))
+        .catch(() => setCustomModel(undefined));
+    }, []),
+  );
+
+  const saveAction = useAsyncAction(async () => {
+    if (!gen.result) return;
+    setSaveMessage(null);
+    setLocalError(null);
+    try {
+      const ok = await saveVideoToDevice(gen.result);
+      if (ok) setSaveMessage(t('generate.videoSaved'));
+    } catch {
+      setLocalError(t('generate.downloadError'));
+    }
+  });
+
+  const shareAction = useAsyncAction(async () => {
+    if (!gen.result) return;
+    setLocalError(null);
+    try {
+      await shareVideo(gen.result);
+    } catch {
+      setLocalError(t('history.shareError'));
+    }
+  });
 
   const working = busy || gen.isRunning;
-  const supportsImage = getProvider(provider).supportsImage;
+  const providerDef = getProvider(provider);
+  const supportsImage = providerDef.supportsImage;
   const effectiveMode: GenerationMode = supportsImage ? mode : 'text2video';
+  const durations = providerDef.durations(quality);
+  const effectiveDuration = durations.includes(durationSec) ? durationSec : durations[0];
+  const cost = estimateVideoCost({ provider, quality, durationSec: effectiveDuration, customModel });
 
   const pickImage = async () => {
     setLocalError(null);
@@ -47,12 +89,15 @@ export default function GenerateScreen() {
 
   const submit = () => {
     setLocalError(null);
+    setSaveMessage(null);
     if (!prompt.trim()) return setLocalError(t('generate.emptyPrompt'));
     if (effectiveMode === 'image2video' && !image) return setLocalError(t('generate.noImage'));
     void run({
       provider,
       mode: effectiveMode,
       prompt: prompt.trim(),
+      durationSec: effectiveDuration,
+      quality,
       ...(effectiveMode === 'image2video' && image ? { imageBase64: image.base64, imageMime: image.mime } : {}),
     });
   };
@@ -91,6 +136,23 @@ export default function GenerateScreen() {
           disabled={working}
         />
       ) : null}
+      <Text style={{ color: theme.colors.muted }}>{t('generate.quality')}</Text>
+      <ProviderPicker<VideoQuality>
+        options={[
+          { value: 'standard', label: t('generate.qualityStandard') },
+          { value: 'high', label: t('generate.qualityHigh') },
+        ]}
+        value={quality}
+        onChange={setQuality}
+        disabled={working}
+      />
+      <Text style={{ color: theme.colors.muted }}>{t('generate.duration')}</Text>
+      <ProviderPicker<string>
+        options={durations.map((d) => ({ value: String(d), label: `${d} ${t('generate.seconds')}` }))}
+        value={String(effectiveDuration)}
+        onChange={(v) => setDurationSec(Number(v))}
+        disabled={working}
+      />
       <PromptInput
         label={t('generate.prompt')}
         placeholder={t('generate.promptPlaceholder')}
@@ -98,6 +160,15 @@ export default function GenerateScreen() {
         onChangeText={setPrompt}
         editable={!working}
       />
+      <View style={styles.costBox}>
+        <Text style={styles.costTitle}>
+          {t('generate.estimatedCost')}: <Text style={styles.costPrice}>{cost.rubText}</Text>
+          {cost.usdText ? ` (${cost.usdText})` : ''}
+        </Text>
+        <Text style={styles.costSub}>
+          {cost.modelLabel} · {effectiveDuration} {t('generate.seconds')}
+        </Text>
+      </View>
       <PrimaryButton
         label={working ? t('generate.buttonBusy') : t('generate.button')}
         loading={working}
@@ -119,7 +190,43 @@ export default function GenerateScreen() {
         </Pressable>
       ) : null}
       <ErrorBanner message={errorText} />
-      {!working && videoUri ? <VideoCard uri={videoUri} /> : null}
+      {!working && videoUri ? (
+        <View style={styles.resultBox}>
+          <VideoCard uri={videoUri} />
+          {saveMessage ? <Text style={styles.savedText}>{saveMessage}</Text> : null}
+          <PrimaryButton
+            label={saveAction.busy ? t('common.downloading') : t('generate.downloadVideo')}
+            loading={saveAction.busy}
+            disabled={saveAction.busy || shareAction.busy}
+            onPress={() => void saveAction.run()}
+          />
+          <Pressable
+            disabled={saveAction.busy || shareAction.busy}
+            onPress={() => void shareAction.run()}
+            style={styles.shareBtn}
+          >
+            <Text style={styles.shareText}>{t('common.share')}</Text>
+          </Pressable>
+        </View>
+      ) : null}
     </Screen>
   );
 }
+
+const styles = StyleSheet.create({
+  costBox: {
+    padding: theme.spacing.md,
+    borderRadius: theme.radius,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.card,
+    gap: 4,
+  },
+  costTitle: { color: theme.colors.text, fontSize: theme.font.body },
+  costPrice: { color: theme.colors.primary, fontWeight: '700' },
+  costSub: { color: theme.colors.muted, fontSize: theme.font.small },
+  resultBox: { gap: theme.spacing.sm },
+  savedText: { color: theme.colors.success, fontWeight: '600', textAlign: 'center' },
+  shareBtn: { alignItems: 'center', paddingVertical: theme.spacing.sm },
+  shareText: { color: theme.colors.primary, fontSize: theme.font.body, fontWeight: '600' },
+});

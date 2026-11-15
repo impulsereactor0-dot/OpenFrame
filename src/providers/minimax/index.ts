@@ -14,6 +14,8 @@ export const minimaxProvider: VideoProvider = {
     },
   ],
   supportsImage: true,
+  // Hailuo-02: 768P supports 6 or 10 s, 1080P supports 6 s only.
+  durations: (quality) => (quality === 'high' ? [6] : [6, 10]),
   createJob: createVideoTask,
   getJob: queryVideoTask,
 };

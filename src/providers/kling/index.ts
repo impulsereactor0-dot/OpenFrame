@@ -15,6 +15,7 @@ export const klingProvider: VideoProvider = {
     },
   ],
   supportsImage: true,
+  durations: () => [5, 10],
   createJob: createKlingTask,
   getJob: queryKlingTask,
 };

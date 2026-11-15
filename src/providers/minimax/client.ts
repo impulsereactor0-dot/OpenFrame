@@ -23,8 +23,8 @@ export async function createVideoTask(req: GenerationRequest, creds: ProviderCre
   const body: Record<string, unknown> = {
     model: MODEL,
     prompt: req.prompt,
-    duration: req.durationSec === 10 ? 10 : 6, // Hailuo-02 supports 6 or 10 s
-    resolution: '768P',
+    duration: req.durationSec === 10 && req.quality !== 'high' ? 10 : 6, // 1080P allows 6 s only
+    resolution: req.quality === 'high' ? '1080P' : '768P',
   };
   if (req.mode === 'image2video') {
     if (!req.imageBase64) throw new AppError('BAD_REQUEST');

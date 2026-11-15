@@ -1,5 +1,15 @@
 ﻿export const en = {
-  common: { cancel: 'Cancel', delete: 'Delete', save: 'Save', clear: 'Clear', share: 'Share', play: 'Play', close: 'Close' },
+  common: {
+    cancel: 'Cancel',
+    delete: 'Delete',
+    save: 'Save',
+    clear: 'Clear',
+    share: 'Share',
+    download: 'Download',
+    downloading: 'Saving…',
+    play: 'Play',
+    close: 'Close',
+  },
   tabs: { generate: 'Create', history: 'History', settings: 'Settings' },
   generate: {
     title: 'New video',
@@ -24,6 +34,15 @@
     imageTooLarge: 'Image is too large. Choose a smaller one (up to ~7 MB).',
     galleryDenied: 'Gallery access is denied. Allow it in system settings.',
     done: 'Video is ready',
+    quality: 'Quality',
+    qualityStandard: 'Standard',
+    qualityHigh: 'High',
+    duration: 'Duration',
+    seconds: 's',
+    estimatedCost: 'Estimated cost',
+    downloadVideo: 'Download video (.mp4)',
+    videoSaved: 'Video saved to selected folder',
+    downloadError: 'Could not save the video.',
   },
   history: {
     title: 'History',

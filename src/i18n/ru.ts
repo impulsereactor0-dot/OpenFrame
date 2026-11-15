@@ -1,7 +1,17 @@
 ﻿import type { Translations } from './en';
 
 export const ru: Translations = {
-  common: { cancel: 'Отмена', delete: 'Удалить', save: 'Сохранить', clear: 'Очистить', share: 'Поделиться', play: 'Смотреть', close: 'Закрыть' },
+  common: {
+    cancel: 'Отмена',
+    delete: 'Удалить',
+    save: 'Сохранить',
+    clear: 'Очистить',
+    share: 'Поделиться',
+    download: 'Скачать',
+    downloading: 'Сохраняем…',
+    play: 'Смотреть',
+    close: 'Закрыть',
+  },
   tabs: { generate: 'Создать', history: 'История', settings: 'Настройки' },
   generate: {
     title: 'Новое видео',
@@ -26,6 +36,15 @@ export const ru: Translations = {
     imageTooLarge: 'Изображение слишком большое. Выберите меньше (до ~7 МБ).',
     galleryDenied: 'Нет доступа к галерее. Разрешите его в настройках системы.',
     done: 'Видео готово',
+    quality: 'Качество',
+    qualityStandard: 'Стандарт',
+    qualityHigh: 'Высокое',
+    duration: 'Длительность',
+    seconds: 'с',
+    estimatedCost: 'Примерная стоимость',
+    downloadVideo: 'Скачать видео (.mp4)',
+    videoSaved: 'Видео сохранено в выбранную папку',
+    downloadError: 'Не удалось сохранить видео.',
   },
   history: {
     title: 'История',

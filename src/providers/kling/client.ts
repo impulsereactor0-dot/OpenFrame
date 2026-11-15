@@ -27,7 +27,7 @@ export async function createKlingTask(req: GenerationRequest, creds: ProviderCre
     model_name: MODEL,
     prompt: req.prompt,
     duration: String(req.durationSec === 10 ? 10 : 5),
-    mode: 'std',
+    mode: req.quality === 'high' ? 'pro' : 'std',
   };
   if (req.mode === 'image2video') {
     if (!req.imageBase64) throw new AppError('BAD_REQUEST');

@@ -1,5 +1,6 @@
 export type ProviderId = 'minimax' | 'kling' | 'custom';
 export type GenerationMode = 'text2video' | 'image2video';
+export type VideoQuality = 'standard' | 'high';
 
 export interface GenerationRequest {
   provider: ProviderId;
@@ -7,7 +8,8 @@ export interface GenerationRequest {
   prompt: string;
   imageBase64?: string;
   imageMime?: string;
-  durationSec?: 5 | 10;
+  durationSec?: number;
+  quality?: VideoQuality;
 }
 
 export type JobStatus = 'queued' | 'processing' | 'succeeded' | 'failed';

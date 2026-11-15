@@ -5,7 +5,7 @@ import { getErrorMessage } from '../src/core/errorMessages';
 import type { HistoryItem } from '../src/core/types';
 import { getHistory, removeHistoryItem } from '../src/storage/historyStore';
 import { resumeGeneration } from '../src/services/generationService';
-import { shareVideo } from '../src/services/videoFiles';
+import { saveVideoToDevice, shareVideo } from '../src/services/videoFiles';
 import { useT } from '../src/i18n';
 import { Screen } from '../src/ui/components/Screen';
 import { VideoCard } from '../src/ui/components/VideoCard';
@@ -17,6 +17,8 @@ export default function HistoryScreen() {
   const [items, setItems] = useState<HistoryItem[]>([]);
   const [playing, setPlaying] = useState<string | null>(null);
   const [checkingId, setCheckingId] = useState<string | null>(null);
+  const [savingId, setSavingId] = useState<string | null>(null);
+  const [savedId, setSavedId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const checkController = useRef<AbortController | null>(null);
   const mounted = useRef(true);
@@ -77,6 +79,24 @@ export default function HistoryScreen() {
     }
   };
 
+  const download = async (item: HistoryItem) => {
+    if (savingId) return;
+    setError(null);
+    setSavedId(null);
+    setSavingId(item.id);
+    try {
+      const ok = await saveVideoToDevice(item);
+      if (ok && mounted.current) {
+        setSavedId(item.id);
+        load();
+      }
+    } catch {
+      if (mounted.current) setError(t('generate.downloadError'));
+    } finally {
+      if (mounted.current) setSavingId(null);
+    }
+  };
+
   const statusLabel = (i: HistoryItem) =>
     i.status === 'failed' ? t('history.failed') : i.status === 'succeeded' ? '' : t('history.inProgress');
 
@@ -93,10 +113,16 @@ export default function HistoryScreen() {
               {t(`settings.${item.provider}`)} · {new Date(item.createdAt).toLocaleString()} {statusLabel(item)}
             </Text>
             {playing === item.id && uri ? <VideoCard uri={uri} /> : null}
+            {savedId === item.id ? <Text style={styles.saved}>{t('generate.videoSaved')}</Text> : null}
             <View style={styles.row}>
               {uri ? (
                 <>
                   <Action label={t('common.play')} onPress={() => setPlaying(playing === item.id ? null : item.id)} />
+                  <Action
+                    label={savingId === item.id ? t('common.downloading') : t('common.download')}
+                    disabled={savingId !== null}
+                    onPress={() => void download(item)}
+                  />
                   <Action label={t('common.share')} onPress={() => share(item)} />
                 </>
               ) : item.jobId ? (
@@ -147,6 +173,7 @@ const styles = StyleSheet.create({
   },
   prompt: { color: theme.colors.text, fontSize: theme.font.body },
   meta: { color: theme.colors.muted, fontSize: theme.font.small },
+  saved: { color: theme.colors.success, fontSize: theme.font.small, fontWeight: '600' },
   row: { flexDirection: 'row', gap: theme.spacing.md, alignItems: 'center' },
   action: { paddingVertical: 6, paddingRight: theme.spacing.sm },
   actionText: { color: theme.colors.primary, fontSize: theme.font.body, fontWeight: '600' },
