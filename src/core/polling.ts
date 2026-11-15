@@ -30,7 +30,7 @@ const TRANSIENT = new Set(['NO_NETWORK', 'TIMEOUT', 'SERVER']);
 
 /** Calls `fn` repeatedly with gentle backoff until `isDone`, abort or timeout. */
 export async function pollUntil<T>(fn: () => Promise<T>, opts: PollOptions<T>): Promise<T> {
-  const { isDone, onTick, signal, intervalMs = 4000, maxIntervalMs = 10000, timeoutMs = 15 * 60 * 1000, maxTransientErrors = 5 } = opts;
+  const { isDone, onTick, signal, intervalMs = 4000, maxIntervalMs = 10000, timeoutMs = 15 * 60 * 1000, maxTransientErrors = 30 } = opts;
   const started = Date.now();
   let delay = intervalMs;
   let failures = 0;

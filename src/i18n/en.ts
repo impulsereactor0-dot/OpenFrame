@@ -33,6 +33,8 @@
     inProgress: 'In progress',
     noVideo: 'Video is unavailable',
     shareError: 'Could not share the video.',
+    checkStatus: 'Check status',
+    checking: 'Checking…',
   },
   settings: {
     title: 'Settings',
@@ -75,6 +77,13 @@
     INVALID_URL: 'Enter a valid HTTPS URL (for example, https://api.example.com).',
     CANCELLED: 'Generation cancelled.',
     UNKNOWN: 'Something went wrong. Please try again.',
+  },
+  notifications: {
+    generatingTitle: 'Generating video in background…',
+    readyTitle: 'Video is ready!',
+    readyBody: 'Tap to open and watch your video.',
+    failedTitle: 'Video generation failed',
+    failedBody: 'Open the app to check the status.',
   },
 };
 

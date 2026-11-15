@@ -24,6 +24,7 @@ export type ProviderCredentials = Record<string, string>;
 
 export interface HistoryItem {
   id: string;
+  jobId?: string;
   provider: ProviderId;
   mode: GenerationMode;
   prompt: string;

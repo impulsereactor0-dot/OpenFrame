@@ -1,8 +1,10 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from 'expo-router';
+import { getErrorMessage } from '../src/core/errorMessages';
 import type { HistoryItem } from '../src/core/types';
 import { getHistory, removeHistoryItem } from '../src/storage/historyStore';
+import { resumeGeneration } from '../src/services/generationService';
 import { shareVideo } from '../src/services/videoFiles';
 import { useT } from '../src/i18n';
 import { Screen } from '../src/ui/components/Screen';
@@ -14,12 +16,43 @@ export default function HistoryScreen() {
   const { t } = useT();
   const [items, setItems] = useState<HistoryItem[]>([]);
   const [playing, setPlaying] = useState<string | null>(null);
+  const [checkingId, setCheckingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const checkController = useRef<AbortController | null>(null);
+  const mounted = useRef(true);
+
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      checkController.current?.abort();
+    };
+  }, []);
 
   const load = useCallback(() => {
     getHistory().then(setItems).catch(() => setItems([]));
   }, []);
   useFocusEffect(load);
+
+  const checkStatus = async (item: HistoryItem) => {
+    if (checkingId) return;
+    setError(null);
+    setCheckingId(item.id);
+    const ctrl = new AbortController();
+    checkController.current = ctrl;
+    try {
+      await resumeGeneration(item, { signal: ctrl.signal });
+      if (mounted.current) load();
+    } catch (e) {
+      if (mounted.current) {
+        setError(getErrorMessage(e));
+        load();
+      }
+    } finally {
+      checkController.current = null;
+      if (mounted.current) setCheckingId(null);
+    }
+  };
 
   const confirmDelete = (id: string) =>
     Alert.alert(t('history.confirmDelete'), undefined, [
@@ -66,6 +99,12 @@ export default function HistoryScreen() {
                   <Action label={t('common.play')} onPress={() => setPlaying(playing === item.id ? null : item.id)} />
                   <Action label={t('common.share')} onPress={() => share(item)} />
                 </>
+              ) : item.jobId ? (
+                <Action
+                  label={checkingId === item.id ? t('history.checking') : t('history.checkStatus')}
+                  disabled={checkingId !== null}
+                  onPress={() => void checkStatus(item)}
+                />
               ) : (
                 <Text style={styles.meta}>{t('history.noVideo')}</Text>
               )}
@@ -78,9 +117,19 @@ export default function HistoryScreen() {
   );
 }
 
-function Action({ label, onPress, danger }: { label: string; onPress: () => void; danger?: boolean }) {
+function Action({
+  label,
+  onPress,
+  danger,
+  disabled,
+}: {
+  label: string;
+  onPress: () => void;
+  danger?: boolean;
+  disabled?: boolean;
+}) {
   return (
-    <Pressable onPress={onPress} style={styles.action}>
+    <Pressable disabled={disabled} onPress={onPress} style={[styles.action, disabled && { opacity: 0.5 }]}>
       <Text style={[styles.actionText, danger && { color: theme.colors.danger }]}>{label}</Text>
     </Pressable>
   );

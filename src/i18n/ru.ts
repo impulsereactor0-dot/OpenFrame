@@ -35,6 +35,8 @@ export const ru: Translations = {
     inProgress: 'В процессе',
     noVideo: 'Видео недоступно',
     shareError: 'Не удалось поделиться видео.',
+    checkStatus: 'Проверить статус',
+    checking: 'Проверяем…',
   },
   settings: {
     title: 'Настройки',
@@ -77,5 +79,12 @@ export const ru: Translations = {
     INVALID_URL: 'Укажите корректный HTTPS-адрес (например, https://api.example.com).',
     CANCELLED: 'Генерация отменена.',
     UNKNOWN: 'Что-то пошло не так. Попробуйте ещё раз.',
+  },
+  notifications: {
+    generatingTitle: 'Генерация видео в фоне…',
+    readyTitle: 'Видео готово!',
+    readyBody: 'Нажмите, чтобы открыть и посмотреть видео.',
+    failedTitle: 'Не удалось создать видео',
+    failedBody: 'Откройте приложение, чтобы проверить статус.',
   },
 };

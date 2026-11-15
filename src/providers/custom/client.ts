@@ -72,6 +72,7 @@ export async function createCustomTask(
   const body: Record<string, unknown> = isPolza
     ? {
         model: polza?.model ?? model ?? 'kling/v3',
+        async: true,
         input: {
           prompt: req.prompt,
           aspect_ratio: '16:9',

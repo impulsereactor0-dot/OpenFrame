@@ -14,13 +14,18 @@
       "package": "com.openframe.app",
       "versionCode": 1,
       "allowBackup": false,
-      "permissions": []
+      "permissions": [
+        "POST_NOTIFICATIONS",
+        "WAKE_LOCK",
+        "RECEIVE_BOOT_COMPLETED"
+      ]
     },
     "plugins": [
       "expo-router",
       "expo-secure-store",
       "expo-localization",
       "expo-video",
+      "expo-notifications",
       [
         "expo-image-picker",
         {
