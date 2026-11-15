@@ -4,6 +4,7 @@ import type { VideoProvider } from '../../providers/VideoProvider';
 import { getCredentials, saveCredentials, clearCredentials } from '../../storage/secureKeys';
 import { useAsyncAction } from '../../hooks/useAsyncAction';
 import { getErrorMessage } from '../../core/errorMessages';
+import { assertHttps } from '../../core/http';
 import { useT } from '../../i18n';
 import { PrimaryButton } from './PrimaryButton';
 import { ErrorBanner } from './ErrorBanner';
@@ -27,8 +28,10 @@ export function ProviderKeysForm({ provider }: { provider: VideoProvider }) {
   }, [provider.id]);
 
   const save = useAsyncAction(async () => {
+    setInfo(null);
     const clean: Record<string, string> = {};
     for (const f of provider.credentialFields) clean[f.key] = (values[f.key] ?? '').trim();
+    if (clean.baseUrl) assertHttps(clean.baseUrl);
     await saveCredentials(provider.id, clean);
     setInfo(t('settings.saved'));
   });
@@ -40,6 +43,7 @@ export function ProviderKeysForm({ provider }: { provider: VideoProvider }) {
 
   const busy = save.busy || clear.busy;
   const err = save.error ?? clear.error;
+  const keyUrl = KEY_URLS[provider.id];
 
   return (
     <View style={styles.card}>
@@ -49,7 +53,9 @@ export function ProviderKeysForm({ provider }: { provider: VideoProvider }) {
           <Text style={styles.label}>{t(f.labelKey)}</Text>
           <TextInput
             style={styles.input}
-            secureTextEntry
+            secureTextEntry={f.secret !== false}
+            keyboardType={f.key === 'baseUrl' ? 'url' : 'default'}
+            placeholder={f.placeholder}
             autoCapitalize="none"
             autoCorrect={false}
             value={values[f.key] ?? ''}
@@ -69,9 +75,11 @@ export function ProviderKeysForm({ provider }: { provider: VideoProvider }) {
         <Pressable disabled={busy} onPress={() => void clear.run()}>
           <Text style={styles.link}>{t('common.clear')}</Text>
         </Pressable>
-        <Pressable onPress={() => void Linking.openURL(KEY_URLS[provider.id] ?? 'https://expo.dev')}>
-          <Text style={styles.link}>{t('settings.getKeys')} ↗</Text>
-        </Pressable>
+        {keyUrl ? (
+          <Pressable onPress={() => void Linking.openURL(keyUrl)}>
+            <Text style={styles.link}>{t('settings.getKeys')} ↗</Text>
+          </Pressable>
+        ) : null}
       </View>
     </View>
   );

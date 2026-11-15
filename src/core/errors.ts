@@ -8,6 +8,7 @@ export type ErrorCode =
   | 'BAD_REQUEST'
   | 'SERVER'
   | 'MISSING_KEY'
+  | 'INVALID_URL'
   | 'CANCELLED'
   | 'UNKNOWN';
 

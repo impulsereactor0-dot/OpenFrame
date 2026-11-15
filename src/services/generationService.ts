@@ -1,4 +1,5 @@
 import { AppError } from '../core/errors';
+import { assertHttps } from '../core/http';
 import { pollUntil } from '../core/polling';
 import type { GenerationRequest, HistoryItem, JobState } from '../core/types';
 import { getProvider } from '../providers/registry';
@@ -21,7 +22,9 @@ export async function runGeneration(req: GenerationRequest, opts: RunOptions = {
   if (req.mode === 'image2video' && !provider.supportsImage) throw new AppError('BAD_REQUEST');
 
   const creds = await getCredentials(req.provider);
-  if (!provider.credentialFields.every((f) => creds[f.key]?.trim())) throw new AppError('MISSING_KEY');
+  const required = provider.credentialFields.filter((f) => f.required !== false);
+  if (!required.every((f) => creds[f.key]?.trim())) throw new AppError('MISSING_KEY');
+  if (creds.baseUrl?.trim()) assertHttps(creds.baseUrl.trim());
 
   onPhase?.('submitting');
   const jobId = await provider.createJob(req, creds, signal);

@@ -15,7 +15,16 @@ export interface HttpResult<T = any> {
 }
 
 export function assertHttps(url: string): void {
-  if (!/^https:\/\//i.test(url)) throw new AppError('BAD_REQUEST', 'HTTPS required');
+  if (!/^https:\/\/[^\s/$.?#].[^\s]*$/i.test(url.trim())) {
+    throw new AppError('INVALID_URL', 'HTTPS required');
+  }
+}
+
+export function resolveBaseUrl(url: string | undefined, fallback: string): string {
+  const custom = url?.trim();
+  if (!custom) return fallback;
+  assertHttps(custom);
+  return custom.replace(/\/+$/, '');
 }
 
 /**

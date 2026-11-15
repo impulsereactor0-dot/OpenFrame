@@ -4,9 +4,17 @@ import { createHmac } from 'node:crypto';
 import { base64Url, hmacSha256, utf8Bytes } from '../src/core/hmacSha256';
 import { pollUntil } from '../src/core/polling';
 import { AppError, toAppError, errorFromHttpStatus } from '../src/core/errors';
+import { assertHttps, resolveBaseUrl } from '../src/core/http';
 import { buildKlingToken } from '../src/providers/kling/auth';
 import { errorFromKlingCode, mapKlingStatus } from '../src/providers/kling/mapper';
 import { errorFromBaseResp, mapStatus } from '../src/providers/minimax/mapper';
+import {
+  errorFromCustomBody,
+  extractStatusUrl,
+  extractTaskId,
+  extractVideoUrl,
+  mapCustomStatus,
+} from '../src/providers/custom/mapper';
 
 const hex = (b: Uint8Array) => Buffer.from(b).toString('hex');
 const tests: [string, () => void | Promise<void>][] = [];
@@ -74,6 +82,46 @@ test('poll: done, transient retry, fatal, cancel, timeout', async () => {
     (e: any) => e.code === 'TIMEOUT');
   const pre = new AbortController(); pre.abort();
   await assert.rejects(pollUntil(async () => 0, { isDone: () => true, signal: pre.signal }), (e: any) => e.code === 'CANCELLED');
+});
+test('https url validation + resolveBaseUrl', () => {
+  assert.doesNotThrow(() => assertHttps('https://api.example.com/v1/videos'));
+  assert.throws(() => assertHttps('http://api.example.com/v1'), (e: any) => e.code === 'INVALID_URL');
+  assert.throws(() => assertHttps('not-a-url'), (e: any) => e.code === 'INVALID_URL');
+  assert.throws(() => assertHttps('https:///bad'), (e: any) => e.code === 'INVALID_URL');
+  assert.equal(resolveBaseUrl(undefined, 'https://api.minimax.io/v1'), 'https://api.minimax.io/v1');
+  assert.equal(resolveBaseUrl('  https://api.minimaxi.com/v1/// ', 'https://api.minimax.io/v1'), 'https://api.minimaxi.com/v1');
+});
+test('custom provider mappers', () => {
+  assert.equal(mapCustomStatus('completed'), 'succeeded');
+  assert.equal(mapCustomStatus('done'), 'succeeded');
+  assert.equal(mapCustomStatus('pending'), 'queued');
+  assert.equal(mapCustomStatus('canceled'), 'failed');
+  assert.equal(mapCustomStatus(undefined, true), 'succeeded');
+  assert.equal(mapCustomStatus(undefined, false), 'processing');
+
+  assert.equal(extractTaskId({ task_id: 't1' }), 't1');
+  assert.equal(extractTaskId({ data: { id: 42 } }), '42');
+  assert.equal(extractStatusUrl({ urls: { get: 'https://api.example.com/jobs/1' } }), 'https://api.example.com/jobs/1');
+  assert.equal(extractVideoUrl({ output: { url: 'https://cdn.example.com/v.mp4' } }), 'https://cdn.example.com/v.mp4');
+  assert.equal(extractVideoUrl({ data: { task_result: { videos: [{ url: 'https://cdn.example.com/k.mp4' }] } } }), 'https://cdn.example.com/k.mp4');
+
+  assert.equal(errorFromCustomBody({ code: 200, data: { task_id: '1' } }), undefined);
+  assert.equal(errorFromCustomBody({ base_resp: { status_code: 1008 } })?.code, 'NO_BALANCE');
+  assert.equal(errorFromCustomBody({ code: 1102 })?.code, 'NO_BALANCE');
+  assert.equal(errorFromCustomBody({ error: { message: 'Invalid API key provided' } })?.code, 'INVALID_KEY');
+  assert.equal(errorFromCustomBody({ error: 'Insufficient quota' })?.code, 'NO_BALANCE');
+  assert.equal(errorFromCustomBody({ error: { type: 'rate_limit_exceeded' } })?.code, 'RATE_LIMIT');
+  assert.equal(errorFromCustomBody({ error: 'Content moderation failed' })?.code, 'CONTENT_BLOCKED');
+  assert.equal(errorFromCustomBody({ error: 'Bad parameter' })?.code, 'BAD_REQUEST');
+
+  // GenAPI response payloads
+  assert.equal(extractTaskId({ request_id: 1234567, status: 'starting' }), '1234567');
+  assert.equal(mapCustomStatus('starting'), 'queued');
+  assert.equal(mapCustomStatus('success'), 'succeeded');
+  assert.equal(
+    extractVideoUrl({ request_id: 1234567, status: 'success', output: ['https://api.gen-api.ru/storage/results/v.mp4'] }),
+    'https://api.gen-api.ru/storage/results/v.mp4',
+  );
 });
 
 (async () => {

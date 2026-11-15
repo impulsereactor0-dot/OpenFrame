@@ -1,5 +1,5 @@
 import { AppError, errorFromHttpStatus } from '../../core/errors';
-import { httpJson, assertHttps } from '../../core/http';
+import { httpJson, assertHttps, resolveBaseUrl } from '../../core/http';
 import type { GenerationMode, GenerationRequest, JobState, ProviderCredentials } from '../../core/types';
 import { buildKlingToken } from './auth';
 import { errorFromKlingCode, mapKlingStatus } from './mapper';
@@ -33,7 +33,8 @@ export async function createKlingTask(req: GenerationRequest, creds: ProviderCre
     if (!req.imageBase64) throw new AppError('BAD_REQUEST');
     body.image = req.imageBase64; // raw base64, no data: prefix
   }
-  const res = await httpJson(`${BASE}/${req.mode}`, { method: 'POST', headers, body, signal });
+  const base = resolveBaseUrl(creds.baseUrl, BASE);
+  const res = await httpJson(`${base}/${req.mode}`, { method: 'POST', headers, body, signal });
   check(res);
   const id = res.data?.data?.task_id;
   if (!id) throw new AppError('SERVER');
@@ -42,8 +43,9 @@ export async function createKlingTask(req: GenerationRequest, creds: ProviderCre
 
 export async function queryKlingTask(jobId: string, creds: ProviderCredentials, signal?: AbortSignal): Promise<JobState> {
   const { mode, id } = decodeJobId(jobId);
+  const base = resolveBaseUrl(creds.baseUrl, BASE);
   const headers = { Authorization: `Bearer ${buildKlingToken(creds)}` };
-  const res = await httpJson(`${BASE}/${mode}/${encodeURIComponent(id)}`, { headers, signal });
+  const res = await httpJson(`${base}/${mode}/${encodeURIComponent(id)}`, { headers, signal });
   check(res);
   const data = res.data?.data;
   const status = mapKlingStatus(data?.task_status);

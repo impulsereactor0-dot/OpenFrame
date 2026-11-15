@@ -1,4 +1,4 @@
-export type ProviderId = 'minimax' | 'kling';
+export type ProviderId = 'minimax' | 'kling' | 'custom';
 export type GenerationMode = 'text2video' | 'image2video';
 
 export interface GenerationRequest {
@@ -19,7 +19,7 @@ export interface JobState {
   failReason?: string;
 }
 
-/** minimax: {apiKey}; kling: {accessKey, secretKey} */
+/** minimax: {apiKey, baseUrl?}; kling: {accessKey, secretKey, baseUrl?}; custom: {baseUrl, apiKey, model?} */
 export type ProviderCredentials = Record<string, string>;
 
 export interface HistoryItem {
