@@ -27,6 +27,23 @@ function getOrigin(url: string): string {
   return m[1];
 }
 
+function resolvePolza(baseUrl: string, model?: string): { postUrl: string; model: string } | null {
+  const mediaMatch = baseUrl.match(/^(https:\/\/[^/]*polza\.ai)\/api\/v1\/media(?:\/(.+))?$/i);
+  if (mediaMatch) {
+    return {
+      postUrl: `${mediaMatch[1]}/api/v1/media`,
+      model: model || mediaMatch[2] || 'kling/v3',
+    };
+  }
+  if (/^https:\/\/[^/]*polza\.ai(\/api(\/v1)?)?$/i.test(baseUrl)) {
+    return {
+      postUrl: `${getOrigin(baseUrl)}/api/v1/media`,
+      model: model || 'kling/v3',
+    };
+  }
+  return null;
+}
+
 function resolvePostUrl(baseUrl: string, model?: string): string {
   if (/^https:\/\/[^/]*gen-api\.ru(\/api(\/v1(\/networks)?)?)?$/i.test(baseUrl) && model) {
     return `${getOrigin(baseUrl)}/api/v1/networks/${encodeURIComponent(model)}`;
@@ -42,7 +59,9 @@ export async function createCustomTask(
   const baseUrl = getBaseUrl(creds);
   const headers = auth(creds);
   const model = creds.model?.trim();
-  const postUrl = resolvePostUrl(baseUrl, model);
+  const polza = resolvePolza(baseUrl, model);
+  const postUrl = polza ? polza.postUrl : resolvePostUrl(baseUrl, model);
+  const isPolza = Boolean(polza) || /\/api\/v1\/media$/i.test(postUrl);
 
   if (req.mode === 'image2video' && !req.imageBase64) {
     throw new AppError('BAD_REQUEST');
@@ -50,13 +69,24 @@ export async function createCustomTask(
   const dataUrl =
     req.mode === 'image2video' ? `data:${req.imageMime ?? 'image/jpeg'};base64,${req.imageBase64}` : undefined;
 
-  const body: Record<string, unknown> = {
-    prompt: req.prompt,
-    mode: req.mode,
-    duration: req.durationSec === 10 ? 10 : 5,
-    ...(model ? { model } : {}),
-    ...(dataUrl ? { image: dataUrl, first_frame_image: dataUrl, image_url: dataUrl } : {}),
-  };
+  const body: Record<string, unknown> = isPolza
+    ? {
+        model: polza?.model ?? model ?? 'kling/v3',
+        input: {
+          prompt: req.prompt,
+          aspect_ratio: '16:9',
+          ...(req.mode === 'image2video' && req.imageBase64
+            ? { images: [{ type: 'base64', data: req.imageBase64 }] }
+            : {}),
+        },
+      }
+    : {
+        prompt: req.prompt,
+        mode: req.mode,
+        duration: req.durationSec === 10 ? 10 : 5,
+        ...(model ? { model } : {}),
+        ...(dataUrl ? { image: dataUrl, first_frame_image: dataUrl, image_url: dataUrl } : {}),
+      };
 
   const res = await httpJson(postUrl, { method: 'POST', headers, body, signal });
   check(res);
@@ -71,6 +101,11 @@ export async function createCustomTask(
   if (taskId) {
     if (res.data?.request_id !== undefined || /gen-api\.ru|\/api\/v1\/networks\//i.test(postUrl)) {
       const pollUrl = `${getOrigin(postUrl)}/api/v1/request/get/${encodeURIComponent(taskId)}`;
+      assertHttps(pollUrl);
+      return `url:${pollUrl}`;
+    }
+    if (isPolza) {
+      const pollUrl = `${postUrl}/${encodeURIComponent(taskId)}`;
       assertHttps(pollUrl);
       return `url:${pollUrl}`;
     }
@@ -103,6 +138,9 @@ export async function queryCustomTask(
     const statusUrl = jobId.slice('url:'.length);
     assertHttps(statusUrl);
     res = await httpJson(statusUrl, { headers, signal });
+    if (res.status === 404 && /polza\.ai/i.test(statusUrl) && !statusUrl.endsWith('/operations')) {
+      res = await httpJson(`${statusUrl}/operations`, { headers, signal });
+    }
   } else if (jobId.startsWith('id:')) {
     const taskId = jobId.slice('id:'.length);
     const baseUrl = getBaseUrl(creds);
