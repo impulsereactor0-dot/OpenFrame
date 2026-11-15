@@ -10,6 +10,7 @@ export interface GenerationRequest {
   imageMime?: string;
   durationSec?: number;
   quality?: VideoQuality;
+  sound?: boolean;
 }
 
 export type JobStatus = 'queued' | 'processing' | 'succeeded' | 'failed';

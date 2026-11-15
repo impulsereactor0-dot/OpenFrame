@@ -16,8 +16,9 @@ export function estimateVideoCost(params: {
   quality: VideoQuality;
   durationSec: number;
   customModel?: string;
+  sound?: boolean;
 }): CostEstimate {
-  const { provider, quality, durationSec, customModel } = params;
+  const { provider, quality, durationSec, customModel, sound } = params;
   const sec = durationSec > 0 ? durationSec : 5;
 
   if (provider === 'minimax') {
@@ -43,35 +44,36 @@ export function estimateVideoCost(params: {
 
   const resolved = normalizePolzaModel(customModel);
   const lower = resolved.toLowerCase();
+  const audioMult = sound ? 1.5 : 1;
 
   if (lower.includes('seedance-2-mini')) {
-    const perSecRub = quality === 'high' ? 4 : 2;
+    const perSecRub = (quality === 'high' ? 4 : 2) * audioMult;
     return {
-      rubText: `~${perSecRub * sec} ₽`,
+      rubText: `~${Math.round(perSecRub * sec)} ₽`,
       modelLabel: `${resolved} · ${quality === 'high' ? '720p' : '480p'}`,
     };
   }
 
   if (lower.includes('seedance-2-fast')) {
-    const perSecRub = quality === 'high' ? 6 : 3;
+    const perSecRub = (quality === 'high' ? 6 : 3) * audioMult;
     return {
-      rubText: `~${perSecRub * sec} ₽`,
+      rubText: `~${Math.round(perSecRub * sec)} ₽`,
       modelLabel: `${resolved} · ${quality === 'high' ? '720p' : '480p'}`,
     };
   }
 
   if (lower.includes('seedance')) {
-    const perSecRub = quality === 'high' ? 9 : 5;
+    const perSecRub = (quality === 'high' ? 9 : 5) * audioMult;
     return {
-      rubText: `~${perSecRub * sec} ₽`,
+      rubText: `~${Math.round(perSecRub * sec)} ₽`,
       modelLabel: `${resolved} · ${quality === 'high' ? '720p' : '480p'}`,
     };
   }
 
   if (lower.includes('kling')) {
-    const perSecRub = quality === 'high' ? 11 : 8;
+    const perSecRub = (quality === 'high' ? 11 : 8) * audioMult;
     return {
-      rubText: `~${perSecRub * sec} ₽`,
+      rubText: `~${Math.round(perSecRub * sec)} ₽`,
       modelLabel: `${resolved} · ${quality === 'high' ? 'pro' : 'std'}`,
     };
   }

@@ -84,6 +84,7 @@ export async function createCustomTask(
   const polzaModel = polza?.model ?? normalizePolzaModel(model);
   const isKlingModel = /^kling\//i.test(polzaModel);
   const isSeedanceModel = /seedance/i.test(polzaModel);
+  const soundFlag = req.sound !== false ? 'true' : 'false';
 
   const body: Record<string, unknown> = isPolza
     ? {
@@ -93,11 +94,11 @@ export async function createCustomTask(
           prompt: req.prompt,
           aspect_ratio: '16:9',
           duration: String(duration),
-          ...(isKlingModel ? { mode: req.quality === 'high' ? 'pro' : 'std', sound: 'false' } : {}),
+          ...(isKlingModel ? { mode: req.quality === 'high' ? 'pro' : 'std', sound: soundFlag } : {}),
           ...(isSeedanceModel
             ? {
                 resolution: req.quality === 'high' ? '720p' : '480p',
-                generate_audio: 'false',
+                generate_audio: soundFlag,
                 multi_shots: 'false',
               }
             : {}),
@@ -110,6 +111,7 @@ export async function createCustomTask(
         prompt: req.prompt,
         mode: req.mode,
         duration,
+        ...(req.sound !== undefined ? { sound: req.sound } : {}),
         ...(model ? { model } : {}),
         ...(dataUrl ? { image: dataUrl, first_frame_image: dataUrl, image_url: dataUrl } : {}),
       };

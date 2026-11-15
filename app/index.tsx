@@ -31,6 +31,7 @@ export default function GenerateScreen() {
   const [mode, setMode] = useState<GenerationMode>('text2video');
   const [quality, setQuality] = useState<VideoQuality>('standard');
   const [durationSec, setDurationSec] = useState<number>(5);
+  const [sound, setSound] = useState<boolean>(true);
   const [prompt, setPrompt] = useState('');
   const [image, setImage] = useState<{ uri: string; base64: string; mime: string } | null>(null);
   const [localError, setLocalError] = useState<string | null>(null);
@@ -73,7 +74,13 @@ export default function GenerateScreen() {
   const effectiveMode: GenerationMode = supportsImage ? mode : 'text2video';
   const durations = providerDef.durations(quality);
   const effectiveDuration = durations.includes(durationSec) ? durationSec : durations[0];
-  const cost = estimateVideoCost({ provider, quality, durationSec: effectiveDuration, customModel });
+  const cost = estimateVideoCost({
+    provider,
+    quality,
+    durationSec: effectiveDuration,
+    customModel,
+    sound: provider === 'custom' ? sound : false,
+  });
 
   const pickImage = async () => {
     setLocalError(null);
@@ -98,6 +105,7 @@ export default function GenerateScreen() {
       prompt: prompt.trim(),
       durationSec: effectiveDuration,
       quality,
+      ...(provider === 'custom' ? { sound } : {}),
       ...(effectiveMode === 'image2video' && image ? { imageBase64: image.base64, imageMime: image.mime } : {}),
     });
   };
@@ -153,6 +161,20 @@ export default function GenerateScreen() {
         onChange={(v) => setDurationSec(Number(v))}
         disabled={working}
       />
+      {provider === 'custom' ? (
+        <>
+          <Text style={{ color: theme.colors.muted }}>{t('generate.sound')}</Text>
+          <ProviderPicker<'on' | 'off'>
+            options={[
+              { value: 'on', label: t('generate.soundOn') },
+              { value: 'off', label: t('generate.soundOff') },
+            ]}
+            value={sound ? 'on' : 'off'}
+            onChange={(v) => setSound(v === 'on')}
+            disabled={working}
+          />
+        </>
+      ) : null}
       <PromptInput
         label={t('generate.prompt')}
         placeholder={t('generate.promptPlaceholder')}
